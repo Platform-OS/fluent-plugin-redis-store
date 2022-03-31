@@ -1,5 +1,5 @@
 require 'fluent/plugin/output'
-require 'hiredis'
+require 'redis'
 require 'msgpack'
 
 module Fluent::Plugin
