@@ -61,7 +61,7 @@ module Fluent::Plugin
       end
 
       if @uri
-        return Redis.new(uri: @url, password: @password, timeout: @timeout, thread_safe: true)
+        return Redis.new(uri: @uri, password: @password, timeout: @timeout, thread_safe: true)
       end
 
       Redis.new(host: @host, port: @port, password: @password, timeout: @timeout, thread_safe: true, db: @db)
