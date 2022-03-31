@@ -6,30 +6,31 @@ module Fluent::Plugin
 
     helpers :compat_parameters
 
-    DEFAULT_BUFFER_TYPE = "memory"
+    DEFAULT_BUFFER_TYPE = 'memory'
 
     # redis connection
-    config_param :host,      :string,  :default => '127.0.0.1'
-    config_param :port,      :integer, :default => 6379
-    config_param :path,      :string,  :default => nil
-    config_param :password,  :string,  :default => nil
-    config_param :db,        :integer, :default => 0
-    config_param :timeout,   :float,   :default => 5.0
+    config_param :host,      :string,  default: '127.0.0.1'
+    config_param :port,      :integer, default: 6379
+    config_param :path,      :string,  default: nil
+    config_param :password,  :string,  default: nil
+    config_param :db,        :integer, default: 0
+    config_param :timeout,   :float,   default: 5.0
+    config_param :uri,       :string,  default: nil
 
     # redis command and parameters
-    config_param :format_type,       :string,  :default => 'json'
-    config_param :store_type,        :string,  :default => 'zset'
-    config_param :key_prefix,        :string,  :default => ''
-    config_param :key_suffix,        :string,  :default => ''
-    config_param :key,               :string,  :default => nil
-    config_param :key_path,          :string,  :default => nil
-    config_param :score_path,        :string,  :default => nil
-    config_param :value_path,        :string,  :default => ''
-    config_param :key_expire,        :integer, :default => -1
-    config_param :value_expire,      :integer, :default => -1
-    config_param :value_length,      :integer, :default => -1
-    config_param :order,             :string,  :default => 'asc'
-    config_param :collision_policy,  :string,  :default => nil
+    config_param :format_type,       :string,  default: 'json'
+    config_param :store_type,        :string,  default: 'zset'
+    config_param :key_prefix,        :string,  default: ''
+    config_param :key_suffix,        :string,  default: ''
+    config_param :key,               :string,  default: nil
+    config_param :key_path,          :string,  default: nil
+    config_param :score_path,        :string,  default: nil
+    config_param :value_path,        :string,  default: ''
+    config_param :key_expire,        :integer, default: -1
+    config_param :value_expire,      :integer, default: -1
+    config_param :value_length,      :integer, default: -1
+    config_param :order,             :string,  default: 'asc'
+    config_param :collision_policy,  :string,  default: nil
     config_set_default :flush_interval, 1
 
     config_section :buffer do
@@ -46,20 +47,24 @@ module Fluent::Plugin
       compat_parameters_convert(conf, :buffer)
       super
 
-      if @key_path == nil and @key == nil
-        raise Fluent::ConfigError, "either key_path or key is required"
-      end
+      raise Fluent::ConfigError, 'either key_path or key is required' if @key_path.nil? && @key.nil?
     end
 
     def start
       super
+      @redis = build_redis
+    end
+
+    def build_redis
       if @path
-        @redis = Redis.new(:path => @path, :password => @password,
-                           :timeout => @timeout, :thread_safe => true, :db => @db)
-      else
-        @redis = Redis.new(:host => @host, :port => @port, :password => @password,
-                           :timeout => @timeout, :thread_safe => true, :db => @db)
+        return Redis.new(path: @path, password: @password, timeout: @timeout, thread_safe: true, db: @db)
       end
+
+      if @uri
+        return Redis.new(uri: @url, password: @password, timeout: @timeout, thread_safe: true)
+      end
+
+      Redis.new(host: @host, port: @port, password: @password, timeout: @timeout, thread_safe: true, db: @db)
     end
 
     def shutdown
@@ -117,6 +122,7 @@ module Fluent::Plugin
       key = get_key_from(record)
       value = get_value_from(record)
       score = get_score_from(record, time)
+
       if @collision_policy
         if @collision_policy == 'NX'
           @redis.zadd(key, score, value, :nx => true)
@@ -128,14 +134,12 @@ module Fluent::Plugin
       end
 
       set_key_expire key
-      if 0 < @value_expire
+      if @value_expire.positive?
         now = Time.now.to_i
-        @redis.zremrangebyscore key , '-inf' , (now - @value_expire)
+        @redis.zremrangebyscore key, '-inf', (now - @value_expire)
       end
-      if 0 < @value_length
-        script = generate_zremrangebyrank_script(key, @value_length, @order)
-        @redis.eval script
-      end
+
+      r.zremrangebyrank(key, 0, -@value_length - 1) if @value_length.positive?
     end
 
     def operation_for_set(record)
