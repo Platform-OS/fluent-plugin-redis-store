@@ -12,13 +12,9 @@ module Fluent::Plugin
     DEFAULT_BUFFER_TYPE = 'memory'
 
     # redis connection
-    config_param :host,      :string,  default: '127.0.0.1'
-    config_param :port,      :integer, default: 6379
-    config_param :path,      :string,  default: nil
-    config_param :password,  :string,  default: nil
-    config_param :db,        :integer, default: 0
-    config_param :timeout,   :float,   default: 5.0
     config_param :uri,       :string,  default: nil
+    config_param :password,  :string,  default: nil
+    config_param :timeout,   :float,   default: 5.0
 
     # redis command and parameters
     config_param :format_type,       :string,  default: 'json'
@@ -53,19 +49,7 @@ module Fluent::Plugin
 
     def start
       super
-      @redis = build_redis
-    end
-
-    def build_redis
-      if @path
-        return Redis.new(path: @path, password: @password, timeout: @timeout, thread_safe: true, db: @db)
-      end
-
-      if @uri
-        return Redis.new(uri: @uri, password: @password, timeout: @timeout, thread_safe: true)
-      end
-
-      Redis.new(host: @host, port: @port, password: @password, timeout: @timeout, thread_safe: true, db: @db)
+      @redis = Redis.new(uri: @uri, password: @password, timeout: @timeout, thread_safe: true)
     end
 
     def shutdown
