@@ -1,6 +1,4 @@
 require 'fluent/plugin/output'
-require 'redis'
-require 'msgpack'
 
 module Fluent::Plugin
   class RedisStoreOutput < Output
@@ -37,6 +35,12 @@ module Fluent::Plugin
 
     config_section :buffer do
       config_set_default :@type, DEFAULT_BUFFER_TYPE
+    end
+
+    def initialize
+      super
+      require 'hiredis' unless defined?(Redis) == 'constant'
+      require 'msgpack'
     end
 
     def configure(conf)
