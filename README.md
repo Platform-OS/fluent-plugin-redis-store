@@ -180,4 +180,4 @@ Copyright (c) 2014 HANAI Tohru
 
 License
 -------
-Apache License, Version 2.0
+Apache-2.0
