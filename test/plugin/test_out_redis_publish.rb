@@ -114,6 +114,16 @@ class RedisStoreOutputTest < Test::Unit::TestCase
     assert_equal 'a', d.instance.key
   end
 
+  def test_configure_uri
+    config = %[
+      uri redis://redis:6379/12
+      key a
+      score_path b
+    ]
+    d = create_driver(config)
+    assert_equal 'redis://redis:6379/12', d.instance.uri
+  end
+
   def test_configure_path
     config = %[
       path /tmp/foo.sock
