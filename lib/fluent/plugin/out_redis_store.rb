@@ -12,7 +12,7 @@ module Fluent::Plugin
     DEFAULT_BUFFER_TYPE = 'memory'
 
     # redis connection
-    config_param :uri,       :string,  default: nil
+    config_param :url,       :string,  default: nil
     config_param :password,  :string,  default: nil
     config_param :timeout,   :float,   default: 5.0
 
@@ -44,12 +44,13 @@ module Fluent::Plugin
       compat_parameters_convert(conf, :buffer)
       super
 
+      raise Fluent::ConfigError, 'redis uri is required' if @url.nil?
       raise Fluent::ConfigError, 'either key_path or key is required' if @key_path.nil? && @key.nil?
     end
 
     def start
       super
-      @redis = Redis.new(uri: @uri, password: @password, timeout: @timeout, thread_safe: true)
+      @redis = Redis.new(url: @url, password: @password, timeout: @timeout, thread_safe: true)
     end
 
     def shutdown
@@ -70,61 +71,56 @@ module Fluent::Plugin
     end
 
     def write(chunk)
-      @redis.pipelined {
-        chunk.open { |io|
-          begin
-            MessagePack::Unpacker.new(io).each { |message|
-              begin
-                (_, time, record) = message
-                case @store_type
-                when 'zset'
-                  operation_for_zset(record, time)
-                when 'set'
-                  operation_for_set(record)
-                when 'list'
-                  operation_for_list(record)
-                when 'string'
-                  operation_for_string(record)
-                when 'publish'
-                  operation_for_publish(record)
-                end
-              rescue NoMethodError => e
-                puts e
-              rescue Encoding::UndefinedConversionError => e
-                log.error "Plugin error: " + e.to_s
-                log.error "Original record: " + record.to_s
-                puts e
-              end
-            }
-          rescue EOFError
-            # EOFError always occured when reached end of chunk.
+      @redis.pipelined do |r|
+        chunk.open do |io|
+          MessagePack::Unpacker.new(io).each do |(_, time, record)|
+            case @store_type
+            when 'zset'
+              operation_for_zset(r, record, time)
+            when 'set'
+              operation_for_set(record)
+            when 'list'
+              operation_for_list(record)
+            when 'string'
+              operation_for_string(record)
+            when 'publish'
+              operation_for_publish(record)
+            end
+          rescue NoMethodError => e
+            puts e
+          rescue Encoding::UndefinedConversionError => e
+            log.error 'Plugin error: ' + e.to_s
+            log.error 'Original record: ' + record.to_s
+            puts e
           end
-        }
-      }
+        rescue EOFError
+          # EOFError always occured when reached end of chunk.
+        end
+      end
     end
 
-    def operation_for_zset(record, time)
+    def operation_for_zset(redis, record, time)
       key = get_key_from(record)
       value = get_value_from(record)
       score = get_score_from(record, time)
 
       if @collision_policy
         if @collision_policy == 'NX'
-          @redis.zadd(key, score, value, :nx => true)
+          redis.zadd(key, score, value, :nx => true)
         elsif @collision_policy == 'XX'
-          @redis.zadd(key, score, value, :xx => true)
+          redis.zadd(key, score, value, :xx => true)
         end
       else
-        @redis.zadd(key, score, value)
+        redis.zadd(key, score, value)
       end
 
       set_key_expire key
       if @value_expire.positive?
-        now = Time.now.to_i
-        @redis.zremrangebyscore key, '-inf', (now - @value_expire)
+        now = Time.now.utc.to_f
+        redis.zremrangebyscore key, '-inf', (now - @value_expire)
       end
 
-      r.zremrangebyrank(key, 0, -@value_length - 1) if @value_length.positive?
+      redis.zremrangebyrank(key, 0, -@value_length - 1) if @value_length.positive?
     end
 
     def operation_for_set(record)
