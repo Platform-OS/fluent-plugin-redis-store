@@ -12,9 +12,12 @@ module Fluent::Plugin
     DEFAULT_BUFFER_TYPE = 'memory'
 
     # redis connection
-    config_param :url,       :string,  default: nil
-    config_param :password,  :string,  default: nil
-    config_param :timeout,   :float,   default: 5.0
+    config_param :url,            :string, default: nil
+    config_param :sentinel_name,  :string, default: nil
+    config_param :sentinel_hosts, :array, default: [], value_type: :string
+    config_param :sentinel_ports, :array, default: [], value_type: :string
+    config_param :password,       :string, default: nil
+    config_param :timeout,        :float,  default: 5.0
 
     # redis command and parameters
     config_param :format_type,       :string,  default: 'json'
@@ -44,7 +47,7 @@ module Fluent::Plugin
       compat_parameters_convert(conf, :buffer)
       super
 
-      raise Fluent::ConfigError, 'redis uri is required' if @url.nil?
+      raise Fluent::ConfigError, 'redis uri or sentinel_hosts is required' if @url.nil? #&& (@sentinel_hosts.empty? || @sentinel_ports.empty?)
       raise Fluent::ConfigError, 'either key_path or key is required' if @key_path.nil? && @key.nil?
     end
 
