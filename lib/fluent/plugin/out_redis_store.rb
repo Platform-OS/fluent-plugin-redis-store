@@ -12,7 +12,7 @@ module Fluent::Plugin
 
     # redis connection
     config_param :url,            :string, default: nil
-    config_param :db,             :integer, default: nil
+    config_param :db,             :integer, default: 0
     config_param :sentinel_name,  :string, default: "mymaster"
     config_param :sentinel_hosts, :array, default: [], value_type: :string
     config_param :sentinel_ports, :array, default: [], value_type: :integer
