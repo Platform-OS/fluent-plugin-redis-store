@@ -12,7 +12,7 @@ module Fluent::Plugin
 
     # redis connection
     config_param :url,            :string, default: nil
-    config_param :db,            :string, default: 0
+    config_param :db,             :integer, default: nil
     config_param :sentinel_name,  :string, default: "mymaster"
     config_param :sentinel_hosts, :array, default: [], value_type: :string
     config_param :sentinel_ports, :array, default: [], value_type: :integer
@@ -48,18 +48,20 @@ module Fluent::Plugin
       compat_parameters_convert(conf, :buffer)
       super
 
-      raise Fluent::ConfigError, 'redis uri or sentinel_hosts is required' if @url.nil? #&& (@sentinel_hosts.empty? || @sentinel_ports.empty?)
+      raise Fluent::ConfigError, 'redis uri or sentinel_hosts is required' if @url.nil? && (@sentinel_hosts.empty? || @sentinel_ports.empty?)
       raise Fluent::ConfigError, 'either key_path or key is required' if @key_path.nil? && @key.nil?
 
-      @sentinels = @sentinel_hosts.zip(@sentinel_ports).map { |host, port| { host: host, port: port } }
+      if @sentinel_hosts
+        @sentinels = @sentinel_hosts.zip(@sentinel_ports).map { |host, port| { host: host, port: port } }
+      end
     end
 
     def start
       super
       if @url
         @redis = Redis.new(url: @url, password: @password, timeout: @timeout)
-      else
-        @redis = Redis.new(name: @sentinel_name, sentinels: @sentinels, password: @password, timeout: @timeout)
+      elsif @sentinels
+        @redis = Redis.new(name: @sentinel_name, sentinels: @sentinels, password: @password, timeout: @timeout, db: @db)
       end
     end
 
