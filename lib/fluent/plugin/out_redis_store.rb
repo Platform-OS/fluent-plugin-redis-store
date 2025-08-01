@@ -1,5 +1,4 @@
 require 'fluent/plugin/output'
-require 'hiredis'
 require 'redis'
 require 'msgpack'
 
@@ -13,9 +12,11 @@ module Fluent::Plugin
 
     # redis connection
     config_param :url,            :string, default: nil
-    config_param :sentinel_name,  :string, default: nil
+    config_param :db,            :string, default: 0
+    config_param :sentinel_name,  :string, default: "mymaster"
     config_param :sentinel_hosts, :array, default: [], value_type: :string
-    config_param :sentinel_ports, :array, default: [], value_type: :string
+    config_param :sentinel_ports, :array, default: [], value_type: :integer
+    config_param :sentinels,      :array, default: []
     config_param :password,       :string, default: nil
     config_param :timeout,        :float,  default: 5.0
 
@@ -49,11 +50,17 @@ module Fluent::Plugin
 
       raise Fluent::ConfigError, 'redis uri or sentinel_hosts is required' if @url.nil? #&& (@sentinel_hosts.empty? || @sentinel_ports.empty?)
       raise Fluent::ConfigError, 'either key_path or key is required' if @key_path.nil? && @key.nil?
+
+      @sentinels = @sentinel_hosts.zip(@sentinel_ports).map { |host, port| { host: host, port: port } }
     end
 
     def start
       super
-      @redis = Redis.new(url: @url, password: @password, timeout: @timeout)
+      if @url
+        @redis = Redis.new(url: @url, password: @password, timeout: @timeout)
+      else
+        @redis = Redis.new(name: @sentinel_name, sentinels: @sentinels, password: @password, timeout: @timeout)
+      end
     end
 
     def shutdown

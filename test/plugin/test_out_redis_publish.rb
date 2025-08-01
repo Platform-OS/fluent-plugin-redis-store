@@ -68,13 +68,12 @@ class RedisStoreOutputTest < Test::Unit::TestCase
 
   def test_configure_defaults
     config = %[
+      url redis://redis:6379/12
       key_path a
       score_path b
     ]
     d = create_driver(config)
-    assert_equal("127.0.0.1", d.instance.host)
-    assert_equal(6379, d.instance.port)
-    assert_equal(nil, d.instance.path)
+    assert_equal("redis://redis:6379/12", d.instance.url)
     assert_equal(nil, d.instance.password)
     assert_equal(0, d.instance.db)
     assert_equal(5.0, d.instance.timeout)
@@ -93,45 +92,53 @@ class RedisStoreOutputTest < Test::Unit::TestCase
     assert_equal(nil, d.instance.collision_policy)
   end
 
-  def test_configure_host_port_db
-    config = %[
-      host 192.168.2.3
-      port 9999
-      password abc
-      db 3
-      timeout 7
-      key a
-      score_path b
-    ]
-    d = create_driver(config)
-    assert_equal "192.168.2.3", d.instance.host
-    assert_equal 9999, d.instance.port
-    assert_equal nil, d.instance.path
-    assert_equal 'abc', d.instance.password
-    assert_equal 3, d.instance.db
-    assert_equal 7.0, d.instance.timeout
-    assert_equal nil, d.instance.key_path
-    assert_equal 'a', d.instance.key
-  end
-
   def test_configure_uri
     config = %[
-      uri redis://redis:6379/12
+      url redis://redis:6379/12
       key a
       score_path b
     ]
     d = create_driver(config)
-    assert_equal 'redis://redis:6379/12', d.instance.uri
+    assert_equal 'redis://redis:6379/12', d.instance.url
+  end
+
+  def test_configure_sentinels
+    config = %[
+      url redis://redis:6379/12
+      sentinel_hosts ["redis-0"]
+      sentinel_ports [26379]
+      key a
+      score_path b
+    ]
+    d = create_driver(config)
+    assert_equal [{ host: 'redis-0', port: 26379}], d.instance.sentinels
+    assert_equal "mymaster", d.instance.sentinel_name
+  end
+
+  def test_configure_sentinels_name
+    config = %[
+      url redis://redis:6379/12
+      sentinel_name mymaster2
+      sentinel_hosts ["redis-0", "redis-2"]
+      sentinel_ports [26379, 26372]
+      key a
+      score_path b
+    ]
+    d = create_driver(config)
+    assert_equal [{ host: 'redis-0', port: 26379}, { host: 'redis-2', port: 26372}], d.instance.sentinels
+    assert_equal [{ host: 'redis-0', port: 26379}, { host: 'redis-2', port: 26372}], d.instance.sentinels
+    assert_equal "mymaster2", d.instance.sentinel_name
   end
 
   def test_configure_path
     config = %[
-      path /tmp/foo.sock
+      url redis://redis:6379/12
       key a
       score_path b
     ]
     d = create_driver(config)
-    assert_equal "/tmp/foo.sock", d.instance.path
+
+    assert_equal "redis://redis:6379/12", d.instance.url
   end
 
   def test_configure_exception
@@ -159,6 +166,7 @@ class RedisStoreOutputTest < Test::Unit::TestCase
   # it should return whole message
   def test_omit_value_path
     config = %[
+      url redis://redis:6379/12
       format_type plain
       store_type string
       key_path   user
@@ -180,6 +188,7 @@ class RedisStoreOutputTest < Test::Unit::TestCase
 
   def test_key_value_paths
     config = %[
+      url redis://redis:6379/12
       format_type plain
       store_type string
       key_path   user.name
@@ -203,6 +212,7 @@ class RedisStoreOutputTest < Test::Unit::TestCase
 
   def test_json
     config = %[
+      url redis://redis:6379/12
       format_type json
       store_type string
       key_path   user
@@ -223,6 +233,7 @@ class RedisStoreOutputTest < Test::Unit::TestCase
 
   def test_msgpack
     config = %[
+      url redis://redis:6379/12
       format_type msgpack
       store_type string
       key_path   user
@@ -243,6 +254,7 @@ class RedisStoreOutputTest < Test::Unit::TestCase
 
   def test_list_asc
     config = %[
+      url redis://redis:6379/12
       format_type plain
       store_type list
       key_path   user
@@ -263,6 +275,7 @@ class RedisStoreOutputTest < Test::Unit::TestCase
 
   def test_list_desc
     config = %[
+      url redis://redis:6379/12
       format_type plain
       store_type list
       key_path   user
@@ -284,6 +297,7 @@ class RedisStoreOutputTest < Test::Unit::TestCase
 
   def test_set
     config = %[
+      url redis://redis:6379/12
       format_type plain
       store_type set
       key_path   user
@@ -305,6 +319,7 @@ class RedisStoreOutputTest < Test::Unit::TestCase
 
   def test_zset
     config = %[
+      url redis://redis:6379/12
       format_type plain
       store_type zset
       key_path   user
@@ -329,6 +344,7 @@ class RedisStoreOutputTest < Test::Unit::TestCase
 
   def test_zset_with_no_score_path
     config = %[
+      url redis://redis:6379/12
       format_type plain
       store_type zset
       key_path   user
@@ -352,6 +368,7 @@ class RedisStoreOutputTest < Test::Unit::TestCase
 
   def test_publish
     config = %[
+      url redis://redis:6379/12
       format_type plain
       store_type publish
       key_path   user
@@ -372,6 +389,7 @@ class RedisStoreOutputTest < Test::Unit::TestCase
 
   def test_empty_key
     config = %[
+      url redis://redis:6379/12
       format_type plain
       store_type string
       key_path   none
