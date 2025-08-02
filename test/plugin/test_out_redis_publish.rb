@@ -75,7 +75,7 @@ class RedisStoreOutputTest < Test::Unit::TestCase
     d = create_driver(config)
     assert_equal("redis://redis:6379/12", d.instance.url)
     assert_equal(nil, d.instance.password)
-    assert_equal(nil, d.instance.db)
+    assert_equal(0, d.instance.db)
     assert_equal(5.0, d.instance.timeout)
     assert_equal('json', d.instance.format_type)
     assert_equal('', d.instance.key_prefix)
@@ -104,8 +104,7 @@ class RedisStoreOutputTest < Test::Unit::TestCase
 
   def test_configure_sentinels
     config = %[
-      sentinel_hosts ["redis-0"]
-      sentinel_ports [26379]
+      sentinel_urls ["redis-0:26379"]
       db 5
       key a
       score_path b
@@ -120,14 +119,12 @@ class RedisStoreOutputTest < Test::Unit::TestCase
     config = %[
       url redis://redis:6379/12
       sentinel_name mymaster2
-      sentinel_hosts ["redis-0", "redis-2"]
-      sentinel_ports [26379, 26372]
+      sentinel_urls ["redis-0:26379", "redis-2:26379"]
       key a
       score_path b
     ]
     d = create_driver(config)
-    assert_equal [{ host: 'redis-0', port: 26379}, { host: 'redis-2', port: 26372}], d.instance.sentinels
-    assert_equal [{ host: 'redis-0', port: 26379}, { host: 'redis-2', port: 26372}], d.instance.sentinels
+    assert_equal [{ host: 'redis-0', port: 26379}, { host: 'redis-2', port: 26379}], d.instance.sentinels
     assert_equal "mymaster2", d.instance.sentinel_name
   end
 
