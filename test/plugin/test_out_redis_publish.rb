@@ -104,7 +104,7 @@ class RedisStoreOutputTest < Test::Unit::TestCase
 
   def test_configure_sentinels
     config = %[
-      sentinel_urls ["redis-0:26379"]
+      sentinel_urls "redis-0:26379"
       db 5
       key a
       score_path b
@@ -119,7 +119,7 @@ class RedisStoreOutputTest < Test::Unit::TestCase
     config = %[
       url redis://redis:6379/12
       sentinel_name mymaster2
-      sentinel_urls ["redis-0:26379", "redis-2:26379"]
+      sentinel_urls "redis-0:26379,redis-2:26379"
       key a
       score_path b
     ]

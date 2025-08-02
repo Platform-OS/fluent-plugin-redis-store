@@ -14,7 +14,7 @@ module Fluent::Plugin
     config_param :url,            :string, default: nil
     config_param :db,             :integer, default: 0
     config_param :sentinel_name,  :string, default: "mymaster"
-    config_param :sentinel_urls,  :array, default: [], value_type: :string
+    config_param :sentinel_urls,  :string, default: nil
     config_param :sentinels,      :array, default: []
     config_param :password,       :string, default: nil
     config_param :timeout,        :float,  default: 5.0
@@ -47,11 +47,11 @@ module Fluent::Plugin
       compat_parameters_convert(conf, :buffer)
       super
 
-      raise Fluent::ConfigError, 'redis uri or sentinel_urls is required' if @url.nil? && @sentinel_urls.empty?
+      raise Fluent::ConfigError, 'redis uri or sentinel_urls is required' if @url.nil? && @sentinel_urls.nil?
       raise Fluent::ConfigError, 'either key_path or key is required' if @key_path.nil? && @key.nil?
 
       if @sentinel_urls
-        @sentinels = @sentinel_urls.map {|u|  u.split(':') }.map {|host,port| { host: host, port: port.to_i} }
+        @sentinels = @sentinel_urls.split(',').map { |url| url.split(':')}.map{ |host, port| { host:, port: port.to_i}}
       end
     end
 
